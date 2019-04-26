@@ -1,0 +1,930 @@
+Index: src/top/gunplan/netty/GunCoreWorker.java
+===================================================================
+--- src/top/gunplan/netty/GunCoreWorker.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/GunCoreWorker.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
+@@ -1,71 +0,0 @@
+-package top.gunplan.netty;
+-
+-
+-import top.gunplan.netty.protocol.GunNetResponseInterface;
+-import top.gunplan.nio.utils.GunBytesUtil;
+-
+-import java.io.IOException;
+-import java.lang.reflect.InvocationTargetException;
+-import java.nio.ByteBuffer;
+-import java.nio.channels.SocketChannel;
+-import java.util.List;
+-
+-
+-/**
+- * @author dosdrtt
+- */
+-
+-public final class GunCoreWorker extends GunBootServer.BaseGunNettyWorker implements Runnable {
+-
+-    private final List<GunNettyFilter> filters;
+-
+-    public GunCoreWorker(final List<GunNettyFilter> filters, final GunBootServer.GunNetHandle dealHanders, final SocketChannel channel) {
+-        super(dealHanders, channel);
+-        this.filters = filters;
+-
+-
+-    }
+-
+-    @Override
+-    public synchronized void run() {
+-        byte[] readbata = null;
+-        try {
+-            readbata = GunBytesUtil.readFromChannel(channel, 1024);
+-            if (readbata == null) {
+-                this.handel.dealCloseEvent();
+-                channel.close();
+-            }
+-        } catch (Exception e) {
+-            this.handel.dealExceptionEvent(e);
+-        }
+-        if (readbata != null) {
+-            final GunRequestFilterDto gunFilterObj = new GunRequestFilterDto(readbata);
+-            for (GunNettyFilter filter : this.filters) {
+-                if (!filter.doRequestFilter(gunFilterObj)) {
+-                    break;
+-                }
+-            }
+-            GunNetResponseInterface respObject = null;
+-            try {
+-                respObject = this.handel.dealDataEvent(gunFilterObj.getObject());
+-            } catch (IOException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
+-                this.handel.dealExceptionEvent(e);
+-            }
+-            GunResponseFilterDto responseFilterDto = new GunResponseFilterDto(respObject);
+-            for (GunNettyFilter filter : this.filters) {
+-                if (!filter.doResponseFilter(responseFilterDto)) {
+-                    break;
+-                }
+-            }
+-
+-            if (responseFilterDto.getRespobj().isReturn()) {
+-                try {
+-                    super.channel.write(ByteBuffer.wrap(responseFilterDto.getRespobj().serialize()));
+-                } catch (IOException e) {
+-                    this.handel.dealExceptionEvent(e);
+-                }
+-
+-            }
+-        }
+-    }
+-}
+Index: src/top/gunplan/netty/impl/CoreThreadManage.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/CoreThreadManage.java	(date 1553669295000)
++++ src/top/gunplan/netty/impl/CoreThreadManage.java	(date 1553669295000)
+@@ -0,0 +1,43 @@
++package top.gunplan.netty.impl;
++
++import top.gunplan.netty.GunBootServer;
++import top.gunplan.netty.GunNettyFilter;
++import top.gunplan.nio.utils.GunBaseLogUtil;
++
++import java.io.IOException;
++import java.util.List;
++import java.util.Random;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.Executors;
++import java.util.concurrent.Future;
++
++public class CoreThreadManage {
++    private volatile static AbstractGunCoreThread dealaccept = null;
++    private volatile static AbstractGunCoreThread[] dealdata = new AbstractGunCoreThread[Runtime.getRuntime().availableProcessors()];
++    public static volatile ExecutorService server = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() + 1);
++    private static Random random = new Random();
++
++    public static boolean init(ExecutorService acceptExector, ExecutorService dataExectuor, final List<GunNettyFilter> filters, GunBootServer.GunNetHandle dealhander, int port) throws IOException {
++        try {
++            dealaccept = new CunCoreConnetcionThread(acceptExector, dealhander, port);
++            for (int i = 0; i < Runtime.getRuntime().availableProcessors(); i++) {
++                dealdata[i] = new CunCoreDataThread(dataExectuor, filters, dealhander);
++            }
++        } catch (Exception e) {
++            return false;
++        }
++        return true;
++    }
++
++    public static AbstractGunCoreThread getDealThread() {
++        int val = random.nextInt(Runtime.getRuntime().availableProcessors());
++        return dealdata[val];
++    }
++
++    public static Future<Integer> startAllAndWait() {
++        for (AbstractGunCoreThread thrun : dealdata) {
++            server.submit(thrun);
++        }
++        return server.submit(dealaccept, 1);
++    }
++}
+Index: src/top/gunplan/netty/filters/GunStdToStringFilter.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/filters/GunStdToStringFilter.java	(date 1553669790000)
++++ src/top/gunplan/netty/filters/GunStdToStringFilter.java	(date 1553669790000)
+@@ -0,0 +1,23 @@
++package top.gunplan.netty.filters;
++
++import top.gunplan.netty.GunNettyFilter;
++import top.gunplan.netty.GunRequestFilterDto;
++import top.gunplan.netty.GunResponseFilterDto;
++import top.gunplan.netty.anno.GunNetFilterOrder;
++import top.gunplan.netty.protocol.GunStdString;
++
++@GunNetFilterOrder
++public class GunStdToStringFilter implements GunNettyFilter {
++    @Override
++    public boolean doRequestFilter(GunRequestFilterDto filterDto) {
++        GunStdString s = new GunStdString() ;
++        s.unSerialize(filterDto.getSrc());
++        filterDto.setObject(s);
++        return true;
++    }
++
++    @Override
++    public boolean doResponseFilter(GunResponseFilterDto filterDto) {
++        return false;
++    }
++}
+Index: src/top/gunplan/netty/protocol/GunStdString.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/protocol/GunStdString.java	(date 1553669724000)
++++ src/top/gunplan/netty/protocol/GunStdString.java	(date 1553669724000)
+@@ -0,0 +1,14 @@
++package top.gunplan.netty.protocol;
++
++public class GunStdString implements GunNetRequestInterface {
++    private String s=null;
++    @Override
++    public boolean unSerialize(byte[] in) {
++        s = new String(in);
++        return true;
++    }
++
++    public String getS() {
++        return s;
++    }
++}
+Index: src/top/gunplan/netty/unittest/GunTestJunit.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/unittest/GunTestJunit.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/unittest/GunTestJunit.java	(date 1553671226000)
+@@ -3,10 +3,13 @@
+ import org.junit.jupiter.api.Test;
+ import top.gunplan.netty.GunBootServer;
+ import top.gunplan.netty.filters.GunStdHttp2Filter;
++import top.gunplan.netty.filters.GunStdToStringFilter;
+ import top.gunplan.netty.handles.GunStdHttpHandle;
+ import top.gunplan.netty.impl.GunBootServerFactory;
++import top.gunplan.netty.impl.example.GunOutputHander;
+ 
+ import java.io.IOException;
++import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.Executors;
+ 
+ 
+@@ -16,20 +19,20 @@
+ public class GunTestJunit {
+     @Test
+     public void doTest() throws Exception {
+-//        CountDownLatch latch = new CountDownLatch(1);
+-//        latch.await();
+-//        System.out.println("gg");
++
++
++    }
++
++    public static void main(String[] args) throws IOException {
+         GunBootServer server = GunBootServerFactory.getInstance();
+         server.setExecuters(Executors.newFixedThreadPool(10), Executors.newFixedThreadPool(10)).addFilter(new GunStdHttp2Filter()).setHandel(new GunStdHttpHandle("top.gunplan.netty.test"));
+-        server.sync();
+-    }
+-
+-    public static void main(String[] args) throws IOException {
+-
++        try {
++            server.sync();
++        } catch (ExecutionException e) {
++            e.printStackTrace();
++        } catch (InterruptedException e) {
++            e.printStackTrace();
++        }
+     }
+-//        GunBootServer server = GunBootServerFactory.getInstance(8822);
+-//       // server.setExecuters(Executors.newFixedThreadPool(3),Executors.newFixedThreadPool(3));
+-//        //server.setHandel(new GunOutputHander());
+-//        server.sync();
+ 
+ }
+\ No newline at end of file
+Index: src/top/gunplan/netty/protocol/resputil/GunMappingJsonResp.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/protocol/resputil/GunMappingJsonResp.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/protocol/resputil/GunMappingJsonResp.java	(date 1553595396000)
+@@ -8,13 +8,15 @@
+  */
+ public final class GunMappingJsonResp extends HashMap<String, String> implements GunHttp2ResponseBody {
+     private static final long serialVersionUID = -6884797417624222041L;
++
+     @Override
+     public String toTransfer() {
+         StringBuilder json = new StringBuilder("{\"");
+         for (String key : super.keySet()) {
+             json.append(key).append("\":\"").append(super.get(key)).append("\",");
+         }
+-        json.append("}");
+-        return json.toString();
++        String s = json.substring(0, json.length() - 1);
++        s += "}";
++        return s;
+     }
+ }
+Index: src/top/gunplan/netty/test/GetBookS.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/test/GetBookS.java	(date 1553596701000)
++++ src/top/gunplan/netty/test/GetBookS.java	(date 1553596701000)
+@@ -0,0 +1,40 @@
++package top.gunplan.netty.test;
++
++import top.gunplan.netty.anno.GunHttpmapping;
++import top.gunplan.netty.handles.http.GunHttpMappingHandle;
++import top.gunplan.netty.protocol.BaseGunHttp2Response;
++import top.gunplan.netty.protocol.GunHttpStdInfo;
++import top.gunplan.netty.protocol.GunNetRequestInterface;
++import top.gunplan.netty.protocol.GunNetResponseInterface;
++import top.gunplan.netty.protocol.resputil.GunMappingJsonResp;
++
++import java.util.ArrayList;
++import java.util.List;
++
++@GunHttpmapping(mappingRule = "/getBooks.gmh")
++public class GetBookS implements GunHttpMappingHandle<GunNetResponseInterface> {
++
++    @Override
++    public GunNetResponseInterface doResponse(GunNetRequestInterface protocl) {
++        BaseGunHttp2Response response = new BaseGunHttp2Response() {
++
++            @Override
++            public String toResponse() {
++
++                List<GunMappingJsonResp> resps = new ArrayList<>();
++                GunMappingJsonResp resp = new GunMappingJsonResp();
++                //connection db
++                resp.put("Type","1");
++                resp.put("content","i love gmh");
++                resp.put("title","i love gmh");
++
++                return resp.toTransfer();
++           }
++        };
++        response.setIswrite(true);
++
++        response.setContentType(GunHttpStdInfo.ContentType.TEXT_JSON);
++
++        return response;
++    }
++}
+Index: src/top/gunplan/netty/handles/GunStdHttpHandle.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/handles/GunStdHttpHandle.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/handles/GunStdHttpHandle.java	(date 1553607130000)
+@@ -98,11 +98,12 @@
+ 
+     @Override
+     public void dealCloseEvent() {
+-
++        GunBaseLogUtil.urgency("CLOSED");
+     }
+ 
+     @Override
+     public void dealExceptionEvent(Exception exp) {
++        GunBaseLogUtil.urgency("CLOSED");
+         exp.printStackTrace();
+     }
+ 
+Index: src/top/gunplan/netty/GunBootServer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/GunBootServer.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/GunBootServer.java	(date 1553665944000)
+@@ -2,18 +2,21 @@
+ 
+ import com.sun.istack.internal.NotNull;
+ import com.sun.istack.internal.Nullable;
++import top.gunplan.netty.impl.AbstractGunCoreThread;
+ import top.gunplan.netty.protocol.GunNetRequestInterface;
+ import top.gunplan.netty.protocol.GunNetResponseInterface;
+ 
+ import java.io.IOException;
+ import java.lang.reflect.InvocationTargetException;
+ import java.nio.channels.SocketChannel;
++import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.ExecutorService;
+ 
+ /**
+  * @author dosdrtt
+  */
+ public interface GunBootServer {
++    AbstractGunCoreThread getADataThread();
+     /**
+      * @return the server 's status
+      */
+@@ -26,7 +29,7 @@
+      */
+ 
+ 
+-    void sync() throws IOException;
++    void sync() throws IOException, ExecutionException, InterruptedException;
+ 
+     /**
+      * set the Thread pool that dispose the request
+@@ -144,6 +147,7 @@
+         }
+ 
+ 
++        @Override
+         public synchronized void run() {
+             try {
+                 this.handel.dealConnEvent(null);
+Index: src/top/gunplan/netty/test/BaseMapping.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/test/BaseMapping.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/test/BaseMapping.java	(date 1553514716000)
+@@ -3,20 +3,17 @@
+ import top.gunplan.netty.anno.GunHttpBaseContent;
+ import top.gunplan.netty.anno.GunHttpmapping;
+ import top.gunplan.netty.handles.http.GunHttpMappingHandle;
+-import top.gunplan.netty.protocol.BaseGunHttp2Response;
+-import top.gunplan.netty.protocol.AbstractGunHttp2Response;
+-import top.gunplan.netty.protocol.GunHttpStdInfo;
+-import top.gunplan.netty.protocol.GunNetRequestInterface;
++import top.gunplan.netty.protocol.*;
+ 
+ @GunHttpmapping(mappingRule = "/index.aspx")
+ @GunHttpBaseContent
+-public class BaseMapping implements GunHttpMappingHandle<AbstractGunHttp2Response> {
++public class BaseMapping implements GunHttpMappingHandle<GunNetResponseInterface> {
+     public BaseMapping() {
+ 
+     }
+ 
+     @Override
+-    public AbstractGunHttp2Response doResponse(GunNetRequestInterface protocl) {
++    public GunNetResponseInterface doResponse(GunNetRequestInterface protocl) {
+         BaseGunHttp2Response response = new BaseGunHttp2Response() {
+             @Override
+             public String toResponse() {
+Index: src/top/gunplan/netty/handles/http/GunHttpMappingHandle.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/handles/http/GunHttpMappingHandle.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/handles/http/GunHttpMappingHandle.java	(date 1553514716000)
+@@ -2,12 +2,13 @@
+ 
+ import top.gunplan.netty.protocol.AbstractGunHttp2Response;
+ import top.gunplan.netty.protocol.GunNetRequestInterface;
++import top.gunplan.netty.protocol.GunNetResponseInterface;
+ 
+ /**
+  * @param <T>
+  * @author dosdrtt
+  */
+-public interface GunHttpMappingHandle<T extends AbstractGunHttp2Response> {
++public interface GunHttpMappingHandle<T extends GunNetResponseInterface> {
+     /**
+      * @return
+      */
+Index: src/top/gunplan/netty/test/ForbiddenMapping.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/test/ForbiddenMapping.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/test/ForbiddenMapping.java	(date 1553514716000)
+@@ -3,16 +3,14 @@
+ import top.gunplan.netty.anno.GunHttpBaseContent;
+ import top.gunplan.netty.anno.GunHttpmapping;
+ import top.gunplan.netty.handles.http.GunHttpMappingHandle;
+-import top.gunplan.netty.protocol.BaseGunHttp2Response;
+-import top.gunplan.netty.protocol.AbstractGunHttp2Response;
+-import top.gunplan.netty.protocol.GunHttpStdInfo;
+-import top.gunplan.netty.protocol.GunNetRequestInterface;
++import top.gunplan.netty.protocol.*;
++
+ @GunHttpmapping(mappingRule = "/manage/*")
+ @GunHttpBaseContent
+-public class ForbiddenMapping implements GunHttpMappingHandle<AbstractGunHttp2Response> {
++public class ForbiddenMapping implements GunHttpMappingHandle<GunNetResponseInterface> {
+ 
+     @Override
+-    public AbstractGunHttp2Response doResponse(GunNetRequestInterface protocl) {
++    public GunNetResponseInterface doResponse(GunNetRequestInterface protocl) {
+         BaseGunHttp2Response response = new BaseGunHttp2Response() {
+ 
+             @Override
+@@ -20,7 +18,6 @@
+                 return "403";
+             }
+         };
+-
+         response.setIswrite(true);
+         response.setCode(GunHttpStdInfo.statusCode.FORBIDDEN);
+         response.setProtoclType(GunHttpStdInfo.HttpProtoclType.HTTP2_0);
+Index: src/top/gunplan/netty/test/TimeServer.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/test/TimeServer.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/test/TimeServer.java	(date 1553514716000)
+@@ -7,17 +7,18 @@
+ import top.gunplan.netty.protocol.BaseGunHttp2Response;
+ import top.gunplan.netty.protocol.AbstractGunHttp2Response;
+ import top.gunplan.netty.protocol.GunNetRequestInterface;
++import top.gunplan.netty.protocol.GunNetResponseInterface;
+ import top.gunplan.netty.protocol.resputil.GunMappingJsonResp;
+ 
+ @GunHttpmapping(mappingRule = "/time")
+ @GunHttpBaseContent
+-public class TimeServer implements GunHttpMappingHandle<AbstractGunHttp2Response> {
++public class TimeServer implements GunHttpMappingHandle<GunNetResponseInterface> {
+     public TimeServer() {
+     }
+ 
+ 
+     @Override
+-    public AbstractGunHttp2Response doResponse(GunNetRequestInterface protocl) {
++    public GunNetResponseInterface doResponse(GunNetRequestInterface protocl) {
+         BaseGunHttp2Response response = new BaseGunHttp2Response() {
+             @Override
+             public String toResponse() {
+Index: src/top/gunplan/netty/GunCoreCalculatorWorker.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/GunCoreCalculatorWorker.java	(date 1553614434000)
++++ src/top/gunplan/netty/GunCoreCalculatorWorker.java	(date 1553614434000)
+@@ -0,0 +1,60 @@
++package top.gunplan.netty;
++
++
++import top.gunplan.netty.protocol.GunNetResponseInterface;
++
++import java.io.IOException;
++import java.lang.reflect.InvocationTargetException;
++import java.nio.ByteBuffer;
++
++
++import java.nio.channels.SocketChannel;
++import java.util.List;
++
++
++/**
++ * @author dosdrtt
++ */
++
++public final class GunCoreCalculatorWorker extends GunBootServer.BaseGunNettyWorker implements Runnable {
++
++    private final List<GunNettyFilter> filters;
++    private final byte[] data;
++
++    public GunCoreCalculatorWorker(final List<GunNettyFilter> filters, final GunBootServer.GunNetHandle dealHanders, final SocketChannel channel, byte[] data) {
++        super(dealHanders, channel);
++        this.filters = filters;
++        this.data = data;
++    }
++
++    @Override
++    public synchronized void run() {
++        final GunRequestFilterDto gunFilterObj = new GunRequestFilterDto(data);
++        for (GunNettyFilter filter : this.filters) {
++            if (!filter.doRequestFilter(gunFilterObj)) {
++                break;
++            }
++        }
++        GunNetResponseInterface respObject = null;
++        try {
++            respObject = this.handel.dealDataEvent(gunFilterObj.getObject());
++        } catch (IOException | NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException e) {
++            this.handel.dealExceptionEvent(e);
++        }
++        GunResponseFilterDto responseFilterDto = new GunResponseFilterDto(respObject);
++        for (GunNettyFilter filter : this.filters) {
++            if (!filter.doResponseFilter(responseFilterDto)) {
++                break;
++            }
++        }
++
++        if (responseFilterDto.getRespobj().isReturn()) {
++            try {
++                super.channel.write(ByteBuffer.wrap(responseFilterDto.getRespobj().serialize()));
++            } catch (IOException e) {
++                this.handel.dealExceptionEvent(e);
++            }
++
++        }
++    }
++}
+Index: src/top/gunplan/netty/impl/CunCoreDataThread.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/CunCoreDataThread.java	(date 1553671329000)
++++ src/top/gunplan/netty/impl/CunCoreDataThread.java	(date 1553671329000)
+@@ -0,0 +1,97 @@
++package top.gunplan.netty.impl;
++
++import top.gunplan.netty.GunBootServer;
++import top.gunplan.netty.GunCoreCalculatorWorker;
++import top.gunplan.netty.GunNettyFilter;
++import top.gunplan.nio.utils.GunBaseLogUtil;
++import top.gunplan.nio.utils.GunBytesUtil;
++
++import java.io.IOException;
++import java.nio.channels.ClosedChannelException;
++import java.nio.channels.SelectableChannel;
++import java.nio.channels.SelectionKey;
++import java.nio.channels.SocketChannel;
++import java.util.Iterator;
++import java.util.List;
++import java.util.concurrent.ExecutorService;
++import java.util.concurrent.atomic.AtomicInteger;
++import java.util.concurrent.locks.LockSupport;
++
++/**
++ * @author dosdrtt
++ */
++public class CunCoreDataThread extends AbstractGunCoreThread {
++    private final List<GunNettyFilter> filters;
++    private final GunBootServer.GunNetHandle dealHandle;
++    private AtomicInteger listionSize = new AtomicInteger(0);
++
++    private volatile Thread nowRun = null;
++
++    public void contionue() {
++        LockSupport.unpark(nowRun);
++    }
++
++    public CunCoreDataThread(ExecutorService deal, final List<GunNettyFilter> filters, final GunBootServer.GunNetHandle dealHandle) throws IOException {
++        super(deal);
++        this.filters = filters;
++        this.dealHandle = dealHandle;
++    }
++
++    public void registerKey(SelectableChannel channel) throws IOException {
++        channel.configureBlocking(false);
++        listionSize.incrementAndGet();
++        channel.register(this.bootSelector, SelectionKey.OP_READ);
++    }
++
++
++    @Override
++    public synchronized void run() {
++        try {
++
++            nowRun = Thread.currentThread();
++            nowRun.setName("DataThread");
++            while (true) {
++
++                if (listionSize.get() == 0) {
++                    LockSupport.park();
++                }
++                int val = bootSelector.select(1000);
++                if (val > 0) {
++                    Iterator keyIterator = bootSelector.selectedKeys().iterator();
++                    while (keyIterator.hasNext()) {
++                        SelectionKey sk = (SelectionKey) keyIterator.next();
++                        this.dealEvent(sk);
++                        keyIterator.remove();
++                    }
++                }
++            }
++        } catch (Exception exp) {
++            exp.printStackTrace();
++        }
++    }
++
++
++    @Override
++    public void dealEvent(SelectionKey key) {
++        byte[] readbata;
++        if (key.isValid()) {
++            try {
++                readbata = GunBytesUtil.readFromChannel((SocketChannel) key.channel(), 1024);
++            } catch (IOException e) {
++                listionSize.decrementAndGet();
++                key.cancel();
++                e.printStackTrace();
++                GunBaseLogUtil.error("Client closed");
++                return;
++            }
++            if (readbata == null) {
++                listionSize.decrementAndGet();
++                GunBaseLogUtil.error("Client closed");
++                key.cancel();
++            } else {
++                this.deal.submit(new GunCoreCalculatorWorker(filters, dealHandle, (SocketChannel) key.channel(), readbata));
++            }
++        }
++
++    }
++}
+Index: src/top/gunplan/netty/protocol/GunHttpStdInfo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/protocol/GunHttpStdInfo.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/protocol/GunHttpStdInfo.java	(date 1553596640000)
+@@ -123,7 +123,7 @@
+         /**
+          *
+          */
+-        TEXT_HTML("text/html"), TEXT_JSON("text/json"), TEXT_PLAIN("text/plain");
++        TEXT_HTML("text/html;charset=utf-8"), TEXT_JSON("text/json;charset=utf-8"), TEXT_PLAIN("text/plain");
+         private String val;
+ 
+         ContentType(String val) {
+Index: src/top/gunplan/netty/impl/example/GunOutputHander.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/example/GunOutputHander.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/impl/example/GunOutputHander.java	(date 1553669737000)
+@@ -5,6 +5,7 @@
+ import top.gunplan.netty.protocol.GunHttp2RequestProtocl;
+ import top.gunplan.netty.protocol.GunNetRequestInterface;
+ import top.gunplan.netty.protocol.GunNetResponseInterface;
++import top.gunplan.netty.protocol.GunStdString;
+ import top.gunplan.nio.utils.GunBaseLogUtil;
+ 
+ public class GunOutputHander implements GunBootServer.GunNetHandle {
+@@ -14,11 +15,10 @@
+ 
+     @Override
+     public GunNetResponseInterface dealDataEvent(GunNetRequestInterface m) {
+-        if (m instanceof GunHttp2RequestProtocl) {
+-            GunHttp2RequestProtocl httpProtocl = ((GunHttp2RequestProtocl) m);
+-            httpProtocl.getRequstHead().forEach((s, s2) ->
+-                    GunBaseLogUtil.info(s + " " + "->" + " " + s2)
+-            );
++        if (m instanceof GunStdString) {
++            GunStdString httpProtocl = ((GunStdString) m);
++            GunBaseLogUtil.urgency(httpProtocl.getS());
++
+         }
+         return null;
+     }
+Index: src/top/gunplan/netty/impl/AbstractGunCoreThread.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/AbstractGunCoreThread.java	(date 1553667005000)
++++ src/top/gunplan/netty/impl/AbstractGunCoreThread.java	(date 1553667005000)
+@@ -0,0 +1,34 @@
++package top.gunplan.netty.impl;
++
++
++import top.gunplan.netty.GunBootServer;
++import top.gunplan.netty.GunCoreCalculatorWorker;
++import top.gunplan.netty.GunNettyFilter;
++import top.gunplan.nio.utils.GunBaseLogUtil;
++import top.gunplan.nio.utils.GunBytesUtil;
++
++import java.io.IOException;
++import java.net.InetSocketAddress;
++import java.nio.channels.SelectionKey;
++import java.nio.channels.Selector;
++import java.util.Iterator;
++import java.util.concurrent.ExecutorService;
++
++/**
++ * @author dosdrtt
++ */
++public abstract class AbstractGunCoreThread implements Runnable {
++    Selector bootSelector;
++    ExecutorService deal;
++
++    public AbstractGunCoreThread(ExecutorService deal) throws IOException {
++        bootSelector = Selector.open();
++        this.deal = deal;
++    }
++
++
++    public abstract void dealEvent(SelectionKey key) throws Exception;
++}
++
++
++
+Index: src/top/gunplan/netty/impl/CunCoreConnetcionThread.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/CunCoreConnetcionThread.java	(date 1553668853000)
++++ src/top/gunplan/netty/impl/CunCoreConnetcionThread.java	(date 1553668853000)
+@@ -0,0 +1,62 @@
++package top.gunplan.netty.impl;
++
++import top.gunplan.netty.GunBootServer;
++import top.gunplan.nio.utils.GunBaseLogUtil;
++
++import java.io.IOException;
++import java.net.InetSocketAddress;
++import java.nio.channels.SelectionKey;
++
++import java.nio.channels.ServerSocketChannel;
++import java.nio.channels.SocketChannel;
++import java.util.Iterator;
++import java.util.concurrent.ExecutorService;
++
++/**
++ * @author dosdrtt
++ */
++public class CunCoreConnetcionThread extends AbstractGunCoreThread {
++    private final GunBootServer.GunNetHandle dealHandle;
++
++    CunCoreConnetcionThread(ExecutorService deal, GunBootServer.GunNetHandle dealHandle, int port) throws IOException {
++        super(deal);
++        this.dealHandle = dealHandle;
++        try {
++            ServerSocketChannel var57 = ServerSocketChannel.open();
++            var57.bind(new InetSocketAddress(port)).configureBlocking(false);
++            var57.register(bootSelector, SelectionKey.OP_ACCEPT);
++        } catch (IOException e) {
++            GunBaseLogUtil.urgency(e.getMessage());
++        }
++
++    }
++
++    @Override
++    public synchronized void run() {
++        try {
++            Thread.currentThread().setName("accept Thread");
++            while (bootSelector.select() > 0) {
++                Iterator keyIterator = bootSelector.selectedKeys().iterator();
++                while (keyIterator.hasNext()) {
++                    SelectionKey sk = (SelectionKey) keyIterator.next();
++                    this.dealEvent(sk);
++                    keyIterator.remove();
++                }
++            }
++        } catch (Exception exp) {
++            exp.printStackTrace();
++        }
++
++    }
++
++
++    @Override
++    public void dealEvent(SelectionKey key) throws Exception {
++        GunBaseLogUtil.urgency("connected....");
++        SocketChannel socketChannel = ((ServerSocketChannel) key.channel()).accept();
++        CunCoreDataThread selectionThread = ((CunCoreDataThread) CoreThreadManage.getDealThread());
++        selectionThread.registerKey(socketChannel);
++        selectionThread.contionue();
++        this.deal.submit(new GunBootServer.GunAcceptWorker(dealHandle, socketChannel));
++    }
++}
+Index: src/top/gunplan/netty/impl/GunBootServerImpl.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- src/top/gunplan/netty/impl/GunBootServerImpl.java	(revision bb1d56b371457899d0737b8edc622181dd86221e)
++++ src/top/gunplan/netty/impl/GunBootServerImpl.java	(date 1553665944000)
+@@ -1,19 +1,13 @@
+ package top.gunplan.netty.impl;
+ 
+-import com.sun.istack.internal.NotNull;
+ import top.gunplan.netty.*;
+ import top.gunplan.netty.anno.GunNetFilterOrder;
+ import top.gunplan.nio.utils.GunBaseLogUtil;
+ 
+ import java.io.IOException;
+-import java.net.InetSocketAddress;
+-import java.nio.channels.SelectionKey;
+ import java.nio.channels.Selector;
+-import java.nio.channels.ServerSocketChannel;
+-import java.nio.channels.SocketChannel;
+ import java.util.List;
+ import java.util.concurrent.*;
+-import java.util.Iterator;
+ 
+ 
+ /**
+@@ -43,6 +37,16 @@
+         this(GunNettySupportParameter.Companion.getPort());
+     }
+ 
++    @Override
++    public AbstractGunCoreThread getADataThread() {
++        return null;
++    }
++
++
++    public static AbstractGunCoreThread getADataThread0() {
++        return null;
++    }
++
+     @Override
+     public boolean isRunnable() {
+         return this.runnable;
+@@ -73,17 +77,6 @@
+     }
+ 
+ 
+-    private void toDealConnection(@NotNull SelectionKey sk) throws IOException {
+-        if (sk.isAcceptable()) {
+-            SocketChannel socketChannel = ((ServerSocketChannel) sk.channel()).accept();
+-            socketChannel.configureBlocking(false).register(this.bootSelector, SelectionKey.OP_READ);
+-            this.acceptExector.submit(new GunAcceptWorker(dealhander, socketChannel));
+-        } else if (sk.isReadable()) {
+-            this.requestExector.submit(new GunCoreWorker(filters, dealhander, (SocketChannel) sk.channel()));
+-            sk.cancel();
+-        }
+-    }
+-
+     private void getAnnoAndInsert(GunNetHandle hander) {
+         this.dealhander = hander;
+     }
+@@ -102,32 +95,23 @@
+         return this.acceptExector != null && requestExector != null && this.dealhander != null && !runnable;
+     }
+ 
++
+     @Override
+-    public synchronized void sync() throws IOException {
++    public synchronized void sync() throws IOException, ExecutionException, InterruptedException {
++        GunBaseLogUtil.debug("Gun Gun Gun Gun Gun Gun Gun Gun Gun Gun Gun Gun");
+         if (!this.initCheck()) {
+             throw new GunException("handel , executepool not set or has been running");
+         }
+-        try {
+-            ServerSocketChannel var57 = ServerSocketChannel.open();
+-            this.bootSelector = Selector.open();
+-            var57.bind(new InetSocketAddress(this.var3315)).configureBlocking(false);
+-            var57.register(bootSelector, SelectionKey.OP_ACCEPT);
+-        } catch (IOException e) {
+-            throw new GunException(e);
++        GunBaseLogUtil.debug("Check parameters succeed");
++
++        if(CoreThreadManage.init(acceptExector,requestExector,filters,dealhander,var3315)) {
++           Future<Integer> result = CoreThreadManage.startAllAndWait();
++           result.get();
+         }
+ 
+-        while (bootSelector.select() > 0) {
+-            Iterator keyIterator = bootSelector.selectedKeys().iterator();
+-            try {
+-                while (keyIterator.hasNext()) {
+-                    SelectionKey sk = (SelectionKey) keyIterator.next();
+-                    this.toDealConnection(sk);
+-                    keyIterator.remove();
+-                }
+-            } catch (Exception exp) {
+-                GunBaseLogUtil.error(exp.getLocalizedMessage());
+-            }
+-        }
++
++
++
+     }
+ 
+ 
