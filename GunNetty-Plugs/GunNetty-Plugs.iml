@@ -10,7 +10,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="GunNioUtil" />
+    <orderEntry type="module" module-name="GunNetty-Utils" />
     <orderEntry type="module" module-name="GunNetty-Core" />
   </component>
 </module>
