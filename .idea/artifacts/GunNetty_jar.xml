@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="GunNetty:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/GunNetty_jar</output-path>
+    <root id="archive" name="GunNetty.jar">
+      <element id="module-output" name="GunNetty-Core" />
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/GunNetty-Core/META-INF/MANIFEST.MF" />
+      </element>
+    </root>
+  </artifact>
+</component>

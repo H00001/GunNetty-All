@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/GunNetty-Core/GunNetty-Core.iml" filepath="$PROJECT_DIR$/GunNetty-Core/GunNetty-Core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GunNetty-Plugs/GunNetty-Plugs.iml" filepath="$PROJECT_DIR$/GunNetty-Plugs/GunNetty-Plugs.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" filepath="$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" />
+    </modules>
+  </component>
+</project>

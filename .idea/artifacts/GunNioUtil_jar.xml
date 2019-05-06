@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="GunNioUtil:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/GunNioUtil_jar</output-path>
+    <root id="archive" name="GunNioUtil.jar">
+      <element id="module-output" name="GunNetty-Utils" />
+    </root>
+  </artifact>
+</component>
