@@ -3,13 +3,9 @@ package top.gunplan.netty.plugs.test;
 import top.gunplan.netty.plugs.handle.GunHttpMappingHandle;
 import top.gunplan.netty.plugs.protocols.BaseGunHttp2Response;
 import top.gunplan.netty.plugs.protocols.GunHttpStdInfo;
-import top.gunplan.netty.anno.GunHttpBaseContent;
-import top.gunplan.netty.anno.GunHttpmapping;
 import top.gunplan.netty.protocol.GunNetInputInterface;
 import top.gunplan.netty.protocol.GunNetOutputInterface;
 
-@GunHttpmapping(mappingRule = "/index.aspx")
-@GunHttpBaseContent
 public class BaseMapping implements GunHttpMappingHandle<GunNetOutputInterface> {
     public BaseMapping() {
 
