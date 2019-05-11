@@ -53,7 +53,7 @@ public abstract class AbstractGunRPCProtocl implements GunNetInputInterface, Gun
     byte[] endFlage = {0x0a, 0x05};
 
 
-    void writeOnceParam(GunBytesUtil.GunWriteByteUtil util, Object parama) {
+    void writeOnceParam(GunBytesUtil.GunWriteByteStream util, Object parama) {
         if (parama instanceof Integer) {
             util.writeByte(RPCProtoclParamType.INT.val);
             util.write32((Integer) parama);
@@ -66,7 +66,7 @@ public abstract class AbstractGunRPCProtocl implements GunNetInputInterface, Gun
 
     }
 
-    Object readOnceParam(GunBytesUtil.GunReadByteUtil util) {
+    Object readOnceParam(GunBytesUtil.GunReadByteStream util) {
         RPCProtoclParamType ptypei = RPCProtoclParamType.valuefrom(util.readByte());
         switch (ptypei) {
             case INT:
@@ -81,18 +81,18 @@ public abstract class AbstractGunRPCProtocl implements GunNetInputInterface, Gun
 
     }
 
-    void publicSet(GunBytesUtil.GunWriteByteUtil util) {
+    void publicSet(GunBytesUtil.GunWriteByteStream util) {
         util.write(type.value);
         util.write(code.value);
     }
 
 
-    boolean checkEnd(GunBytesUtil.GunReadByteUtil unserizutil) {
+    boolean checkEnd(GunBytesUtil.GunReadByteStream unserizutil) {
         byte[] end = unserizutil.readByte(2);
         return GunBytesUtil.compareBytesFromEnd(end, endFlage[0], endFlage[1]);
     }
 
-    void publicUnSet(GunBytesUtil.GunReadByteUtil unserizutil) {
+    void publicUnSet(GunBytesUtil.GunReadByteStream unserizutil) {
         this.type = RPCProtoclType.valuefrom(unserizutil.readInt());
         this.code = RPCProtoclCode.valuefrom(unserizutil.readInt());
     }

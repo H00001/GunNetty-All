@@ -6,7 +6,7 @@ import top.gunplan.utils.GunBytesUtil;
  *
  */
 public final class GunRPCInputProtocl extends AbstractGunRPCProtocl {
-    private boolean analyizeParams(int paramlen, GunBytesUtil.GunReadByteUtil util) {
+    private boolean analyizeParams(int paramlen, GunBytesUtil.GunReadByteStream util) {
         parameters = new Object[paramlen];
         for (int i = 0; i < paramlen; i++) {
             parameters[i] = readOnceParam(util);
@@ -14,7 +14,7 @@ public final class GunRPCInputProtocl extends AbstractGunRPCProtocl {
         return true;
     }
 
-    private boolean writeParam(int paramlen, GunBytesUtil.GunWriteByteUtil util) {
+    private boolean writeParam(int paramlen, GunBytesUtil.GunWriteByteStream util) {
         for (int i = 0; i < paramlen; i++) {
             Object fil = parameters[i];
             writeOnceParam(util, fil);
@@ -29,7 +29,7 @@ public final class GunRPCInputProtocl extends AbstractGunRPCProtocl {
         param.clear();
         int len = 9 + methodName.length() + interfaceName.length() + otherCount;
         byte[] serize = new byte[len];
-        GunBytesUtil.GunWriteByteUtil serizUtil = new GunBytesUtil.GunWriteByteUtil(serize);
+        GunBytesUtil.GunWriteByteStream serizUtil = new GunBytesUtil.GunWriteByteStream(serize);
         publicSet(serizUtil);
         serizUtil.writeByte((byte) interfaceName.length());
         serizUtil.write(interfaceName);
@@ -85,7 +85,7 @@ public final class GunRPCInputProtocl extends AbstractGunRPCProtocl {
 
     @Override
     public boolean unSerialize(byte[] in) {
-        GunBytesUtil.GunReadByteUtil unserizutil = new GunBytesUtil.GunReadByteUtil(in);
+        GunBytesUtil.GunReadByteStream unserizutil = new GunBytesUtil.GunReadByteStream(in);
         publicUnSet(unserizutil);
         int interlen = unserizutil.readByte();
         this.interfaceName = new String(unserizutil.readByte(interlen));
