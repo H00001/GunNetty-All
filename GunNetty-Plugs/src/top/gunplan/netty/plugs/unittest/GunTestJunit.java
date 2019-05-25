@@ -38,7 +38,7 @@ public class GunTestJunit {
                 //  addFilter(new GunHttpdHostCheck()).
                         setHandle(new GunStdHttpHandle("top.gunplan.netty.plugs.test"));
         try {
-            server.sync();
+            int val = server.sync();
         } catch (Exception e) {
             e.printStackTrace();
         }
