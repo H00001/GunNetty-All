@@ -18,7 +18,7 @@ public class GunHttpdHostCheck implements GunNettyFilter {
     @Override
     public DealResult doInputFilter(GunInputFilterChecker filterDto) {
         GunHttp2InputProtocl httpmessage = (GunHttp2InputProtocl) filterDto.getObject();
-        return httpmessage.getRequstHead().get("Host").equals(((GunHttpProperty) GunNettyPropertyManagerImpl.getProperty("http")).getHttphost()) ? DealResult.NEXT : DealResult.NOTDEALALLNEXT;
+        return httpmessage.getRequstHead().get("Host").equals((GunNettyPropertyManagerImpl.getProperty(GunHttpProperty.class)).getHttphost()) ? DealResult.NEXT : DealResult.NOTDEALALLNEXT;
     }
 
     @Override

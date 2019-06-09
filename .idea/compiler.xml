@@ -10,7 +10,8 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="GunNetty-Core" target="1.8" />
+      <module name="gunjhttpd-core" target="13" />
+      <module name="GunNetty-Core" target="13" />
     </bytecodeTargetLevel>
   </component>
 </project>

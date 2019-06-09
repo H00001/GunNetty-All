@@ -4,6 +4,5 @@
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/GunNetty-Core" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/GunNetty-Utils" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/GunNioUtil" vcs="Git" />
   </component>
 </project>

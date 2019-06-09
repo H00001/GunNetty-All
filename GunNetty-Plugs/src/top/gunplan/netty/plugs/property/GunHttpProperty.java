@@ -1,11 +1,13 @@
 package top.gunplan.netty.plugs.property;
 
 
+import top.gunplan.netty.anno.GunPropertyMap;
 import top.gunplan.netty.impl.propertys.GunProperty;
 
 /**
  * @author dosdrtt
  */
+@GunPropertyMap(name = "http")
 public class GunHttpProperty implements GunProperty {
     private String scannPacket = null;
 

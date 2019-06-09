@@ -24,7 +24,7 @@ public class GunTestJunit {
 
     public static void main(String[] args) {
 
-        GunNettyPropertyManagerImpl.registerProperty("http", new GunHttpProperty());
+        GunNettyPropertyManagerImpl.registerProperty(new GunHttpProperty());
         GunBootServer server = GunBootServerFactory.getInstance();
         ExecutorService es0 = new ThreadPoolExecutor(100, 1000,
                 5L, TimeUnit.SECONDS,
