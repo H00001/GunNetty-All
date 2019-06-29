@@ -7,11 +7,18 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="GunNetty-Core" />
+        <module name="GunNetty-Utils" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="gunjhttpd-core" target="13" />
-      <module name="GunNetty-Core" target="13" />
+      <module name="GunNetty-Core" target="12" />
+      <module name="GunNetty-Utils" target="12" />
     </bytecodeTargetLevel>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="GunNetty-Core" options="" />
+    </option>
   </component>
 </project>
