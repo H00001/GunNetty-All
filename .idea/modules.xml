@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/GunNetty-Core/GunNetty-Core.iml" filepath="$PROJECT_DIR$/GunNetty-Core/GunNetty-Core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GunNetty-Core/GunNetty.iml" filepath="$PROJECT_DIR$/GunNetty-Core/GunNetty.iml" />
       <module fileurl="file://$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" filepath="$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" />
     </modules>
   </component>
