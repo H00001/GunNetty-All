@@ -6,6 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="Udp-Support" />
         <module name="GunNetty-Utils" />
         <module name="GunNetty" />
       </profile>
@@ -14,6 +15,7 @@
       <module name="gunjhttpd-core" target="13" />
       <module name="GunNetty" target="12" />
       <module name="GunNetty-Utils" target="12" />
+      <module name="Udp-Support" target="1.5" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

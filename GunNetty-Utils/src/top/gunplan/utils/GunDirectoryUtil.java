@@ -1,6 +1,9 @@
+/*
+ * Copyright (c) frankHan personal 2017-2018
+ */
+
 package top.gunplan.utils;
 
-import com.sun.istack.internal.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,13 +20,13 @@ import java.util.List;
  * @author dosdrtt
  */
 public final class GunDirectoryUtil {
-    public static List<GunHttpMappingFileReference> scanAllFilesFromDirectory(final String folder) throws IOException {
-        List<GunHttpMappingFileReference> files = new LinkedList<>();
-        nextFindFile(files, folder, ".class", "");
+    public static List<GunMappingFileReference> scanAllFilesFromDirectory(final String folder, String type) throws IOException {
+        List<GunMappingFileReference> files = new LinkedList<>();
+        nextFindFile(files, folder, type, "");
         return files;
     }
 
-    private static void nextFindFile(@NotNull List<GunHttpMappingFileReference> files, String folder, String pattern, String base) throws IOException {
+    private static void nextFindFile(List<GunMappingFileReference> files, String folder, String pattern, String base) throws IOException {
         Path path = Paths.get(folder);
         DirectoryStream<Path> dirStream = Files.newDirectoryStream(path);
         for (Path processPath : dirStream) {
@@ -31,14 +34,14 @@ public final class GunDirectoryUtil {
                 nextFindFile(files, processPath.toString(), pattern, processPath.toString().replace(folder, ""));
             } else {
                 if (processPath.toString().endsWith(pattern)) {
-                    files.add(new GunHttpMappingFileReference(base.replace("/", ".") + ".", folder, processPath.toFile()));
+                    files.add(new GunMappingFileReference(base.replace("/", ".") + ".", folder, processPath.toFile()));
                 }
             }
         }
         dirStream.close();
     }
 
-    public static class GunHttpMappingFileReference {
+    public static class GunMappingFileReference {
         String base;
         String packname;
         File clcasfile;
@@ -67,7 +70,7 @@ public final class GunDirectoryUtil {
             this.clcasfile = clcasfile;
         }
 
-        public GunHttpMappingFileReference(String base, String packname, File clcasfile) {
+        GunMappingFileReference(String base, String packname, File clcasfile) {
 
             this.base = base;
             this.packname = packname;

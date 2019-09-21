@@ -6,6 +6,7 @@
         <option value="$PROJECT_DIR$/GunNetty/pom.xml" />
         <option value="$PROJECT_DIR$/GunNetty-Core/pom.xml" />
         <option value="$PROJECT_DIR$/GunNetty-Utils/pom.xml" />
+        <option value="$PROJECT_DIR$/GunNetty-Core/gunplan-netty-udpsupport/pom.xml" />
       </list>
     </option>
   </component>

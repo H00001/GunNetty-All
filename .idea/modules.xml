@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/GunNetty-Core/GunNetty.iml" filepath="$PROJECT_DIR$/GunNetty-Core/GunNetty.iml" />
       <module fileurl="file://$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" filepath="$PROJECT_DIR$/GunNetty-Utils/GunNetty-Utils.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GunNetty-Core/gunplan-netty-udpsupport/Udp-Support.iml" filepath="$PROJECT_DIR$/GunNetty-Core/gunplan-netty-udpsupport/Udp-Support.iml" />
     </modules>
   </component>
 </project>
